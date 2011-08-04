@@ -9,6 +9,7 @@ from yumcommands import *
 from cli import *
 from datetime import datetime
 from DBManager import *
+from Package import *
 
 
 dbObj = DBManager()
@@ -60,10 +61,14 @@ def insertDep(pkgs):
                     depid = dbObj.idFromPkgName(depname)
 
                     if(depid == None):
-                        #TODO Put this package in the not available group
+                        #TODO Add the notes in the package about the not available dependencies
                         print "The current dependency was not found:%s"%depname
+                        dbObj.insertPkgGroup(id,groupTypes['Una'])
+
+
                     else:
-                        dbObj.insertDepen(id[0],depid[0])
+                        if(depname != name): #If the dependency is not itself, then add the dependency
+                            dbObj.insertDepen(id[0],depid[0])
                         break #Go to next dependency
 
 
@@ -72,7 +77,7 @@ def updatePkgs(pkgs):
     now = datetime.now()
     str_now = now.date().isoformat()
     
-    print "UPDATING THE DATABASE OF PACKAGES"
+    print "------------- Updating Packages -------------"
 
     count = 1;
     for pkg in pkgs:
@@ -102,22 +107,15 @@ def updatePkgs(pkgs):
             dbObj.commit()
 
         else:# In this case the package already existed. We verify that the version and release are the same
-            cid = cpkg[0]      #id
-            cname = cpkg[1]    #name
-            cdesc = cpkg[2]
-            csum =  cpkg[3]
-            #csrpm = cpkg[4]
-            cavai = cpkg[5]
-            cversion = cpkg[6]
-            crelease = cpkg[7]
 
             # If the version or release is different then we add a modification
-            if ( (cversion!=version) or (release!=crelease)):
-                print "The package ",cname," has being modified, updating the version"
-                print "Version %s -- %s Release %s -- %s"%(version,cversion,release,crelease)
+            if ( (cpkg.version!=version) or (release!=cpkg.release)):
+                print "The package ",cpkg.name," has being modified, updating the version"
+                print "Version %s -- DB:%s Release %s -- DB: %s"%(version,cpkg.version,release,cpkg.release)
             
-                dbObj.updatePkg(cid, version, release, desc, summary)
-                dbObj.insertModif(str_now,modTypes['modified'],textMod,cid)
+                dbObj.updatePkg(cpkg.id, version, release, desc, summary, cpkg.notes, cpkg.avai)
+                dbObj.commit()
+                dbObj.insertModif(str_now,modTypes['modified'],textMod,cpkg.id)
                 dbObj.commit()
 
 
