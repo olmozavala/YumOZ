@@ -1,0 +1,8 @@
+on hpc
+
+git fetch
+
+pulls changes from brents repo to my repo in my home directory
+
+
+then go to laptop, go into software db, and run git pull

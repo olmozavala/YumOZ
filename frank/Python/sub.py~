@@ -1,0 +1,10 @@
+def hiThere(a, b):
+    """Optional docstring describing the function:
+       Arguments:
+         a - Name of person a
+         b - Name of person b
+       Using docstrings is 'best practice'
+       The help(x) command prints out the docstring for the function."""
+    print "Hello", a
+    print "Hi there", b
+

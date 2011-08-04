@@ -1,0 +1,273 @@
+import sys
+import yum
+import MySQLdb
+
+sys.path.append('/usr/share/yum-cli')
+from output import *
+from yumcommands import *
+from cli import *
+from datetime import datetime
+#from DBtools import *
+
+try:
+    db=MySQLdb.connect(host="144.174.63.107",user="olmozavala",passwd="sopasperico",db="hpc_data")
+except MySQLdb.Error, e:
+    print "Error: %s" % e.args[1]
+    sys.exit(1)
+
+cursor = db.cursor()
+base = cli.YumBaseCli()
+
+def clearAllTables():
+    """Deletes all the records in the tables""" 
+    try:
+        print "Clearing table softwareversion..."
+        cursor.execute("DELETE FROM ac_softwareversion")
+    except MySQLdb.Error, e:
+        print "Error Deleting software version: %s"%e.args[1]
+
+    try:
+        print "Clearing table softwaredepen..."
+        cursor.execute("DELETE FROM ac_softwaredepen")
+    except MySQLdb.Error, e:
+        print "Error Deleting software depen: %s"%e.args[1]
+
+    try:
+        print "Clearing table softwareitem..."
+        cursor.execute("DELETE FROM ac_softwareitem")
+    except MySQLdb.Error, e:
+        print "Error Deleting software version: %s"%e.args[1]
+
+    db.commit()
+
+def insertDep(pkgs):
+    """It searches and inserts the dependencies of al the received pkgs"""
+
+    for pkg in pkgs:
+        name = str(pkg.name) #Name of the package
+        print "-------Finding dependencies for: "+name
+        try:
+            cursor.execute("""SELECT id FROM ac_softwareitem WHERE name=%s""",name)#Obtain id from DB
+        except MySQLdb.Error, e:
+            print "Error: %s" % e.args[1]
+            sys.exit(1)
+
+        id = cursor.fetchone()
+        if(id == None):
+            print "The current package: " + name + " doesn't exist in the DB"
+            break
+
+        temppkgs = [] # Used to store the packages that match the asked name
+        ematch, match, unmatch = base.pkgSack.matchPackageNames([name])
+        for po in ematch + match:# Merges int temppkgs the packages that match the name
+            temppkgs.append(po)
+
+        dependencies = base.findDeps(temppkgs)# Finds the dependecies of the package
+
+        for pkg in dependencies:
+            for req in dependencies[pkg]:
+                reqlist = dependencies[pkg][req] 
+                #print "REQ:",req # This one contains the dependency
+                #print "REQLIST",reqlist # This one contains the provider
+                
+                depname = req[0]
+
+                for po in reqlist:
+                    #TODO search for the 'base-name' of the provider
+                    # po is the type YumAvailablePackage
+                    #print "###########   provider: %s" % po.name
+                    depname = po.name # If we have a provider we use that insted of the dependency name
+
+                print "Dependency name:",depname
+                try:
+                    cursor.execute("""SELECT id FROM ac_softwareitem WHERE name=%s""",depname)#Obtain id from DB
+                except MySQLdb.Error, e:
+                    print "Dependency not found. Error:",e.args[1]
+                
+                depid = cursor.fetchone()
+
+                #TODO verify that the dependency relation doesn't exist  
+                if(depid == None):
+                    print "The current dependency was not found:%s"%depname
+                else:
+                    try:
+                        cursor.execute(""" INSERT INTO ac_softwaredepen VALUES (%s,%s) """,
+                                     (id[0],depid[0]))
+
+                    except MySQLdb.Error, e:
+                        print "ERROR: %s" % e.args[1]
+
+
+def updatePkgs(pkgs):
+    """It inserts a list of packages into the database"""
+    now = datetime.now()
+    str_now = now.date().isoformat()
+    
+    for pkg in pkgs:
+        name = str(pkg.name)
+        version = str(pkg.version)
+        release = str(pkg.release)
+        summary = str(pkg.summary)
+        desc = str(pkg.description)
+
+        # Obtain all the current 'names' of the packages
+        cursor.execute("""SELECT name FROM ac_softwareitem WHERE name=%s""",name)
+        cname = cursor.fetchall()
+
+        if not(cname): #In this case the current package is not in the database so we insert it and also the version
+
+            ### Inserting the new package into the database 
+            try:
+                #print "Inserting "+name+" as new package"
+                cursor.execute(""" INSERT INTO ac_softwareitem (name,description,summary) VALUES (%s,%s,%s) """,
+		         	(name,desc,summary))
+
+            except MySQLdb.Error, e:
+                print "ERROR: %s" % e.args[1]
+
+            ### Inserting the version, release, etc into ac_softwareversion
+            cursor.execute("SELECT id FROM ac_softwareitem WHERE name=%s",name)
+            id = cursor.fetchone()
+            if(id==None):
+                print "BIG ERROR DIDN'T FOUND A PACKAGE THAT WAS JUST STORED"
+                break
+
+            try:
+                cursor.execute(""" INSERT INTO ac_softwareversion (pkversion,pkrelease,upgradedate,fk_softwareitem) VALUES (%s,%s,%s,%s) """,
+		         	(version,release,str_now,id[0]))
+            except MySQLdb.Error, e:
+                print "ERROR: %s" % e.args[1]
+
+        else:# In this case the package already exist. Then we need to check the version.
+            # I am assuming that if the version changed, then it is a newer version and we need to update it
+            print "The pkg: "+name+" is already in the database, verifying the current version"
+            cursor.execute("SELECT id FROM ac_softwareitem WHERE name=%s",name)
+            id = cursor.fetchone()
+            try:
+                cursor.execute(""" UPDATE ac_softwareversion SET pkversion=%s, pkrelease=%s, upgradedate=%s WHERE fk_softwareitem=%s """,
+		         	(version,release,str_now,id[0]))
+            except MySQLdb.Error, e:
+                print "ERROR: %s" % e.args[1]
+
+    db.commit()
+    insertDep(pkgs)#Insert the dependencies of all the new packages
+
+def GetPkgs(lst, description, outputType, highlight_na={},
+                 columns=None, highlight_modes={}):
+
+    print description
+    sortPkg =[] 
+
+    for pkg in sorted(lst):
+        key = (pkg.name, pkg.arch)
+        highlight = False
+        if False: pass
+        elif key not in highlight_na:
+            highlight = highlight_modes.get('not in', 'normal')
+        elif pkg.verEQ(highlight_na[key]):
+            highlight = highlight_modes.get('=', 'normal')
+        elif pkg.verLT(highlight_na[key]):
+            highlight = highlight_modes.get('>', 'bold')
+        else:
+            highlight = highlight_modes.get('<', 'normal')
+        sortPkg.append(pkg)
+
+    return sortPkg
+
+
+def DispPkgs(pkgs):
+   for pkg in pkgs:
+        print pkg.name + "." + pkg.version + "." +  pkg.release
+
+
+if __name__=="__main__":
+
+    """Now this is to OZ version, it should get the same result"""
+    #extcmds = ['ttf-zh-song']
+    extcmds = ['all']
+    #extcmds = ['libhugetlbfs']
+    basecmd = 'info'
+    try:
+        highlight = base.term.MODE['bold']
+        ypl = base.returnPkgLists(extcmds, installed_available=highlight)
+    except yum.Errors.YumBaseError, e:
+        print [str(e)]
+    else:#This happends if no ecxeption occured
+        update_pkgs = {}
+        inst_pkgs   = {}
+        local_pkgs  = {}
+
+        columns = None
+
+        if highlight and ypl.installed:
+            #  If we have installed and available lists, then do the
+            # highlighting for the installed packages so you can see what's
+            # available to update, an extra, or newer than what we have.
+            for pkg in (ypl.hidden_available +
+                        ypl.reinstall_available +
+                        ypl.old_available):
+                key = (pkg.name, pkg.arch)
+                if key not in update_pkgs or pkg.verGT(update_pkgs[key]):
+                    update_pkgs[key] = pkg
+
+        if highlight and ypl.available:
+            #  If we have installed and available lists, then do the
+            # highlighting for the available packages so you can see what's
+            # available to install vs. update vs. old.
+            for pkg in ypl.hidden_installed:
+                key = (pkg.name, pkg.arch)
+                if key not in inst_pkgs or pkg.verGT(inst_pkgs[key]):
+                    inst_pkgs[key] = pkg
+
+        if highlight and ypl.updates:
+            # Do the local/remote split we get in "yum updates"
+            for po in sorted(ypl.updates):
+                if po.repo.id != 'installed' and po.verifyLocalPkg():
+                    local_pkgs[(po.name, po.arch)] = po
+
+        # Output the packages:
+        clio = base.conf.color_list_installed_older
+        clin = base.conf.color_list_installed_newer
+        clir = base.conf.color_list_installed_reinstall
+        clie = base.conf.color_list_installed_extra
+        rip = GetPkgs(ypl.installed, '---------------Installed Packages', basecmd,
+                            highlight_na=update_pkgs, columns=columns,
+                            highlight_modes={'>' : clio, '<' : clin,
+                                             '=' : clir, 'not in' : clie})
+        #DispPkgs(rip)
+        
+        clau = base.conf.color_list_available_upgrade
+        clad = base.conf.color_list_available_downgrade
+        clar = base.conf.color_list_available_reinstall
+        clai = base.conf.color_list_available_install
+        rap = GetPkgs(ypl.available, '---------------Available Packages', basecmd,
+                            highlight_na=inst_pkgs, columns=columns,
+                            highlight_modes={'<' : clau, '>' : clad,
+                                             '=' : clar, 'not in' : clai})
+        #DispPkgs(rap)
+              
+        rep = GetPkgs(ypl.extras, '---------------Extra Packages', basecmd,
+                            columns=columns)
+
+        #DispPkgs(rep)
+
+        cul = base.conf.color_update_local
+        cur = base.conf.color_update_remote
+        rup = GetPkgs(ypl.updates, '---------------Updated Packages', basecmd,
+                            highlight_na=local_pkgs, columns=columns,
+                            highlight_modes={'=' : cul, 'not in' : cur})
+        #DispPkgs(rup)
+
+        rrap = GetPkgs(ypl.recent, '---------------Recently Added Packages',
+                             basecmd, columns=columns)
+
+        if(len(sys.argv) == 1):
+            updatePkgs(rap)
+        else:
+            if( sys.argv[1] == "populate"):
+                print "Initial populate of the DB (from installed packages)"
+                clearAllTables()
+                updatePkgs(rip)
+
+        db.commit()
+        db.close()

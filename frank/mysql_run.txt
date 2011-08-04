@@ -1,0 +1,97 @@
+Script started on Fri 28 Jan 2011 12:19:40 PM EST
+]0;Brent@localhost:~[Brent@brentlaptop ~]$ mysql -u root
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 4
+Server version: 5.0.77 Source distribution
+
+Type 'help;' or '\h' for help. Type '\c' to clear the buffer.
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema | 
+| mysql              | 
+| test               | 
++--------------------+
+3 rows in set (0.00 sec)
+
+mysql> create database software;
+Query OK, 1 row affected (0.00 sec)
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema | 
+| mysql              | 
+| software           | 
+| test               | 
++--------------------+
+4 rows in set (0.00 sec)
+
+mysql> use software;
+Database changed
+mysql> use software;
+mysql> source /home/Brent/Desktop/software_db.sql
+Query OK, 0 rows affected (0.00 sec)
+
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+Query OK, 0 rows affected (0.01 sec)
+
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+Query OK, 0 rows affected (0.01 sec)
+
+Query OK, 0 rows affected (0.01 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> show tables;
++--------------------+
+| Tables_in_software |
++--------------------+
+| ac_softwaredepen   | 
+| ac_softwareitem    | 
++--------------------+
+2 rows in set (0.00 sec)
+
+mysql> select * from ac_softwareitem
+    -> ;
+Empty set (0.00 sec)
+
+mysql> describe ac_softwareitem;
++----------------+---------------------+------+-----+---------+----------------+
+| Field          | Type                | Null | Key | Default | Extra          |
++----------------+---------------------+------+-----+---------+----------------+
+| id             | int(10) unsigned    | NO   | PRI | NULL    | auto_increment | 
+| softwaretypeid | tinyint(3) unsigned | NO   | MUL | 0       |                | 
+| name           | varchar(40)         | NO   |     |         |                | 
+| version        | varchar(20)         | YES  |     | NULL    |                | 
+| release        | varchar(40)         | NO   |     |         |                | 
+| summary        | varchar(40)         | NO   |     |         |                | 
+| description    | varchar(40)         | NO   |     |         |                | 
+| srpm           | varchar(40)         | NO   |     |         |                | 
+| contentid      | int(20) unsigned    | YES  |     | NULL    |                | 
++----------------+---------------------+------+-----+---------+----------------+
+9 rows in set (0.01 sec)
+
+mysql> describe ac_softwaredepend;d[1P;
++-------------+------------------+------+-----+---------+-------+
+| Field       | Type             | Null | Key | Default | Extra |
++-------------+------------------+------+-----+---------+-------+
+| id_software | int(10) unsigned | NO   | PRI | 0       |       | 
+| id_dependen | int(10) unsigned | NO   | PRI | 0       |       | 
++-------------+------------------+------+-----+---------+-------+
+2 rows in set (0.00 sec)
+
+mysql> insert into ac_softwareitem (`name`, `version`, `release`, `srpm`) values ("httpd", "2.2", "1HPC", "httpd-2.2-1HPC.src.rpm");
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from ac_softwareitem;
++----+----------------+-------+---------+---------+---------+-------------+------------------------+-----------+
+| id | softwaretypeid | name  | version | release | summary | description | srpm                   | contentid |
++----+----------------+-------+---------+---------+---------+-------------+------------------------+-----------+
+| 89 |              0 | httpd | 2.2     | 1HPC    |         |             | httpd-2.2-1HPC.src.rpm |      NULL | 
++----+----------------+-------+---------+---------+---------+-------------+------------------------+-----------+
+1 row in set (0.00 sec)
