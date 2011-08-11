@@ -28,7 +28,7 @@ def insertDep(pkgs):
 
     for pkg in pkgs:
         name = str(pkg.name) #Name of the package
-        print "-------Finding dependencies for: "+name
+#        print "-------Finding dependencies for: "+name
 
         id = dbObj.idFromPkgName(name)
         if(id == None):
@@ -42,6 +42,10 @@ def insertDep(pkgs):
 
         dependencies = base.findDeps(temppkgs)# Finds the dependecies of the package
 
+        misDep = False # Indicates if the current package has missing dependencies
+        misDepList = [] # List of missing dependecies
+        misProvList = [] # Corresponding missing providers
+
         for pkg in dependencies:
             for req in dependencies[pkg]:
                 reqlist = dependencies[pkg][req] 
@@ -49,27 +53,42 @@ def insertDep(pkgs):
                 #print "REQLIST",reqlist # This one contains the provider
                 
                 depname = req[0]
+                #print "Dependency name:",depname
 
-                #pdb.set_trace()
                 for po in reqlist:
-                    #TODO search for the 'base-name' of the provider
-                    # po is the type YumAvailablePackage
-                    #print "Provider or dependency name: %s" % po.name
-                    depname = po.name # If we have a provider we use that insted of the dependency name
+                    provname = po.name # If we have a provider we use that insted of the dependency name
 
-                    print "Dependency name:",depname
-                    depid = dbObj.idFromPkgName(depname)
+                    #print "Provider name:",provname
+                    depid = dbObj.idFromPkgName(provname)
 
                     if(depid == None):
-                        #TODO Add the notes in the package about the not available dependencies
-                        print "The current dependency was not found:%s"%depname
-                        dbObj.insertPkgGroup(id,groupTypes['Una'])
+                        #Inserting the current Package into the Unavailable group (with missing dependencies)
+                        print "The current provider was not found:%s"%provname
+                        dbObj.insertPkgToGroup(id,groupTypes['Una'])
+                        dbObj.commit()
 
+                        misDep = True # It has missing dependencies
+                        misDepList.append(depname)
+                        misProvList.append(provname)
 
                     else:
-                        if(depname != name): #If the dependency is not itself, then add the dependency
+                        if(provname != name): #If the dependency is not itself, then add the dependency
                             dbObj.insertDepen(id[0],depid[0])
-                        break #Go to next dependency
+                            dbObj.commit()
+#                            print "Inserting provider:",provname
+                            break #Go to next dependency (NOT SURE ABOUT THIS)
+                    
+            # Verify that there are not missing dependencies. If so, then add them to the notes of the package
+            if(misDep):
+                print "The package %s has missing dependencies."%name
+                pkgdb = dbObj.pkgFromId(id) # Obtains a Pkg form its id
+                newnotes = pkgdb.notes+"The current pkg has the following missing dependencies:"
+                for i in len(misDepList):
+                   newnotes = newnotes + misDepList(i) + " from " + misProvList(i) + ","
+
+                print "NEW NOTES:"+ newnotes
+                dbObj.updatePkg(id, pkgdb.ver, pkgdb.release, pkgdb.desc, pkgdb.sum, newnotes, pkgdb.avai)
+        
 
 
 def updatePkgs(pkgs):
@@ -231,7 +250,7 @@ if __name__=="__main__":
         if(len(sys.argv) == 1):
             print "Updating available packages info"
             updatePkgs(rap)
-            #insertDep(rap)#Insert the dependencies of all the new packages
+            insertDep(rap)#Insert the dependencies of all the new packages
         else:
             if( sys.argv[1] == "populate"):
                 print "Initial populate of the DB first from installed packages and then with available packages"

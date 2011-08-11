@@ -19,7 +19,7 @@ groupTypes = {'Una':'Missing Dependencies', 'Rem':'Removed'}
 class DBManager:
     def __init__(self):
         try:
-            self.db=MySQLdb.connect(host="144.174.63.107",user="olmozavala",passwd="sopasperico",db="hpc_data")
+            self.db=MySQLdb.connect(host="144.174.63.15",user="olmozavala",passwd="sopasperico",db="hpc_data")
         except MySQLdb.Error, e:
             print "Error: %s" % e.args[1]
             sys.exit(1)
@@ -78,6 +78,22 @@ class DBManager:
             print "ERROR: %s" % e.args[1]
         self.db.commit()
 
+    #------------------------------ SELECTS ------------------------
+    def pkgFromId(self,id):
+        """ Returns all the package info from its Id """
+        try:
+            self.cursor.execute("""SELECT * FROM ac_softwareitem WHERE id=%s""",id)
+            pkg = self.cursor.fetchone()
+        except MySQLdb.Error, e:
+            print "Warning: Package not found. %s" % e.args[1]
+            sys.exit(1)
+
+        if(pkg!=None): #Obtaining Package object
+            Pkg = Package(pkg)
+            return Pkg
+
+        return None
+
     def pkgFromName(self,name):
         """ Returns all the package info from a name"""
         try:
@@ -115,6 +131,7 @@ class DBManager:
 
         return self.cursor.fetchone()
 
+    #------------------------------ INSERTS ------------------------
     def insertPkgToGroup(idpkg, groupName):
         """ Inserts one package to a package group (by name) """
         idgroup = self.idFromGroupName(groupName)
@@ -162,9 +179,10 @@ class DBManager:
             self.cursor.execute(""" INSERT INTO ac_softwaredepen VALUES (%s,%s) """, (pkg,depen))
 
         except MySQLdb.Error, e:
-            print "The current relation (pkg -> dependency) already exists: %s" % e.args[1]
-            sys.exit(1)
+            #print "The current relation (pkg -> dependency) already exists: %s" % e.args[1]
+            error = "The current relation (pkg -> dependency) already exists: %s" % e.args[1]
 
+    #----------------------------- UPDATES -------------------
     def updatePkg(self, id, ver, release, desc, sum, notes, avai):
         """ Updates a package by id"""
         try:
