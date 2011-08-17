@@ -53,7 +53,7 @@ def insertDep(pkgs):
                 #print "REQLIST",reqlist # This one contains the provider
                 
                 depname = req[0]
-                #print "Dependency name:",depname
+                print "Dependency name:",depname
 
                 for po in reqlist:
                     provname = po.name # If we have a provider we use that insted of the dependency name
