@@ -17,8 +17,8 @@ base = cli.YumBaseCli()
 
 modTypes = {'insert':'Init','removed':'Removed', 'restored' :'Restored', 'modified' :'Modified'}
 textInsert = 'First time insertion of package'
-textMod= 'The version or release has being modified'
 textMissDepGroup = 'Unavailable'
+groupTypes = {'All':'All packages','Una':'Missing Dependencies', 'Rem':'Removed'}
 
 
 def insertDep(pkgs):
@@ -116,11 +116,16 @@ def updatePkgs(pkgs):
             dbObj.insertPkg(name, desc,summary, version, release, 1)
             dbObj.commit()
 
-            ### Inserting the inital insertion into the database
             id = dbObj.idFromPkgName(name)
             if(id==None):
-                print "BIG ERROR DIDN'T FOUND A PACKAGE THAT WAS JUST STORED"
+                print "BIG ERROR DIDN'T FOUND A PACKAGE THAT WAS JUST INSERTED"
                 break
+
+            ### Adds this package to the 'All' group
+            dbObj.insertPkgToGroup(id[0], groupTypes['All'])
+            dbObj.commit()
+
+            ### Inserting the inital insertion into the database
 
             dbObj.insertModif( str_now,modTypes['insert'],textInsert,id[0])
             dbObj.commit()
@@ -129,9 +134,17 @@ def updatePkgs(pkgs):
 
             # If the version or release is different then we add a modification
             if ( (cpkg.version!=version) or (release!=cpkg.release)):
-                print "The package ",cpkg.name," has being modified, updating the version"
-                print "Version %s -- DB:%s Release %s -- DB: %s"%(version,cpkg.version,release,cpkg.release)
+                #print "The package ",cpkg.name," has being modified, updating the version"
+                #print "Version %s -- DB:%s Release %s -- DB: %s"%(version,cpkg.version,release,cpkg.release)
             
+                # Version and released changed
+                if( (cpkg.version!=version) and (release!=cpkg.release)):
+                    textMod="The version and release changed from %s to %s"%(cpkg.version+"."+cpkg.release, version+"."+release)
+                elif (cpkg.version!=version):# Only the version changed
+                    textMod="The version changed from:     %s    to    %s"%(cpkg.version, version)
+                else:
+                    textMod="The released changed from:     %s    to    %s"%(cpkg.release, release)
+                print textMod        
                 dbObj.updatePkg(cpkg.id, version, release, desc, summary, cpkg.notes, cpkg.avai)
                 dbObj.commit()
                 dbObj.insertModif(str_now,modTypes['modified'],textMod,cpkg.id)

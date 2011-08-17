@@ -13,7 +13,7 @@ modTypes = {'insert':'Init','removed':'Removed', 'restored' :'Restored', 'modifi
 textInsert = 'First time insertion of package'
 textMod= 'The version or release has being modified'
 textMissDepGroup = 'Unavailable'
-groupTypes = {'Una':'Missing Dependencies', 'Rem':'Removed'}
+groupTypes = {'All':'All packages','Una':'Missing Dependencies', 'Rem':'Removed'}
 
 
 class DBManager:
@@ -49,17 +49,24 @@ class DBManager:
             print "Error Deleting software depen: %s"%e.args[1]
 
         try:
+            print "Clearing table softwaretypeitem..."
+            self.cursor.execute("DELETE FROM ac_softwaretypeitem")
+            
+        except MySQLdb.Error, e:
+            print "Error Deleting packages group: %s"%e.args[1]
+
+        try:
             print "Clearing table softwareitem..."
             self.cursor.execute("DELETE FROM ac_softwareitem")
         except MySQLdb.Error, e:
-            print "Error Deleting software version: %s"%e.args[1]
+            print "Error Deleting software item: %s"%e.args[1]
 
         try:
             print "Clearing table softwaretype..."
             self.cursor.execute("DELETE FROM ac_softwaretype")
             
         except MySQLdb.Error, e:
-            print "Error Deleting software version: %s"%e.args[1]
+            print "Error Deleting software type: %s"%e.args[1]
 
         try:
             print "Inserting default values for Group packages"
@@ -73,7 +80,11 @@ class DBManager:
             name = groupTypes['Rem']
             desc = "This packages were removed from the repositories and are currently unavailable"
             self.insertPkgGroup(name,desc) 
-           
+
+            name = groupTypes['All']
+            desc = "It contains all the packages"
+            self.insertPkgGroup(name,desc) 
+
         except MySQLdb.Error, e:
             print "ERROR: %s" % e.args[1]
         self.db.commit()
@@ -132,15 +143,15 @@ class DBManager:
         return self.cursor.fetchone()
 
     #------------------------------ INSERTS ------------------------
-    def insertPkgToGroup(idpkg, groupName):
+    def insertPkgToGroup(self,idpkg, groupName):
         """ Inserts one package to a package group (by name) """
         idgroup = self.idFromGroupName(groupName)
         try:
             self.cursor.execute(""" INSERT INTO ac_softwaretypeitem (id_item,id_type) VALUES (%s,%s) """,
-                (idpkg,idgroup))
+                (idpkg,idgroup[0]))
 
         except MySQLdb.Error, e:
-            print "ERROR Inserting new package, group relationship: %s" % e.args[1]
+            print "ERROR Adding one package to a group, group relationship: %s" % e.args[1]
             sys.exit(1)
 
     def insertPkgGroup(self,name,desc):
