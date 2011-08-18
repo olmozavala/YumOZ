@@ -105,11 +105,10 @@ class DBManager:
 
         return None
 
-    def pkgFromName(self,name):
+    def pkgFromNameAndArch(self,name,arch):
         """ Returns all the package info from a name"""
         try:
-            #self.cursor.execute("""SELECT id,name,pk_version,pk_release FROM ac_softwareitem WHERE name=%s""",name)
-            self.cursor.execute("""SELECT * FROM ac_softwareitem WHERE name=%s""",name)
+            self.cursor.execute("""SELECT * FROM ac_softwareitem WHERE name=%s AND arch=%s""",(name,arch))
             pkg = self.cursor.fetchone()
         except MySQLdb.Error, e:
             print "Warning: Package not found. %s" % e.args[1]
@@ -132,10 +131,10 @@ class DBManager:
         return self.cursor.fetchone()
 
 
-    def idFromPkgName(self,name):
+    def idFromPkgNameAndArch(self,name,arch):
         """ Obtains the id for a package name"""
         try:
-            self.cursor.execute("""SELECT id FROM ac_softwareitem WHERE name=%s""",name)#Obtain id from DB
+            self.cursor.execute("""SELECT id FROM ac_softwareitem WHERE name=%s AND arch=%s""",(name,arch))#Obtain id from DB
         except MySQLdb.Error, e:
             print "ERROR selecting id from package name: %s" % e.args[1]
             sys.exit(1)
@@ -164,13 +163,13 @@ class DBManager:
             print "ERROR Inserting new package group: %s" % e.args[1]
             sys.exit(1)
 
-    def insertPkg(self,name, desc,summary, version, release, available):
+    def insertPkg(self,name, desc,summary, version, release, available, arch):
         """ Inserts a new package into the database"""
         try:
             #TODO update the available field ( is not taken from the inputs)
             self.cursor.execute(""" INSERT INTO ac_softwareitem (name,description,summary,
-                            pk_version,pk_release,available) VALUES (%s,%s,%s,%s,%s,true) """,
-                (name,desc,summary,version,release))
+                            pk_version,pk_release,available,arch) VALUES (%s,%s,%s,%s,%s,%s,%s) """,
+                (name,desc,summary,version,release,available,arch))
 
         except MySQLdb.Error, e:
             print "ERROR Inserting new package: %s" % e.args[1]

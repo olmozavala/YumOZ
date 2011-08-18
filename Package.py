@@ -10,6 +10,7 @@ class Package:
     version = ""
     release = ""
     notes = ""
+    arch = ""
 
     def __init__(self, cpkg):
         self.id = cpkg[0]
@@ -21,11 +22,12 @@ class Package:
         self.version = cpkg[6]
         self.release = cpkg[7]
         self.notes = cpkg[8]
+        self.arch = cpkg[9]
 
 
 
 if __name__=="__main__":
     """Just an example"""
-    arr = ['id0', 'nombre','descrip','summa','availa','version','release','notes']
+    arr = ['id0', 'nombre','descrip','summa','availa','version','release','notes','arch']
     pkg = Package(arr)
     print pkg.name

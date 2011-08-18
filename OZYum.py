@@ -24,13 +24,14 @@ groupTypes = {'All':'All packages','Una':'Missing Dependencies', 'Rem':'Removed'
 def insertDep(pkgs):
     """It searches and inserts the dependencies of all the received pkgs"""
 
-    print "UPDATING ALL THE DEPENDENCIES"
+#    print "UPDATING ALL THE DEPENDENCIES"
 
     for pkg in pkgs:
         name = str(pkg.name) #Name of the package
+        arch = str(pkg.arch) #Name of the package
 #        print "-------Finding dependencies for: "+name
 
-        id = dbObj.idFromPkgName(name)
+        id = dbObj.idFromPkgNameAndArch(name,arch)
         if(id == None):
             print "ERROR Finding Dependencies. The current package: " + name + " doesn't exist in the DB"
             break
@@ -59,7 +60,7 @@ def insertDep(pkgs):
                     provname = po.name # If we have a provider we use that insted of the dependency name
 
                     #print "Provider name:",provname
-                    depid = dbObj.idFromPkgName(provname)
+                    depid = dbObj.idFromPkgNameAndArch(provname)
 
                     if(depid == None):
                         #Inserting the current Package into the Unavailable group (with missing dependencies)
@@ -96,7 +97,7 @@ def updatePkgs(pkgs):
     now = datetime.now()
     str_now = now.date().isoformat()
     
-    print "------------- Updating Packages -------------"
+#    print "------------- Updating Packages -------------"
 
     count = 1;
     for pkg in pkgs:
@@ -105,18 +106,19 @@ def updatePkgs(pkgs):
         release = str(pkg.release)
         summary = str(pkg.summary)
         desc = str(pkg.description)
+        arch = str(pkg.arch)
 
         # Obtain all the current 'names' of the packages
-        cpkg= dbObj.pkgFromName(name)
+        cpkg= dbObj.pkgFromNameAndArch(name,arch)
 
         if cpkg==None: #In this case the current package is not in the database so we insert as new package
             print "Inserting package:",name
 
             ### Inserting the new package into the database 
-            dbObj.insertPkg(name, desc,summary, version, release, 1)
+            dbObj.insertPkg(name, desc,summary, version, release, 1,arch)
             dbObj.commit()
 
-            id = dbObj.idFromPkgName(name)
+            id = dbObj.idFromPkgNameAndArch(name,arch)
             if(id==None):
                 print "BIG ERROR DIDN'T FOUND A PACKAGE THAT WAS JUST INSERTED"
                 break
@@ -261,15 +263,20 @@ if __name__=="__main__":
                              basecmd, columns=columns)
 
         if(len(sys.argv) == 1):
-            print "Updating available packages info"
+            print "-------------- Updating available packages ---------"
             updatePkgs(rap)
+            print "------------ Updating available dependencies --------"
             insertDep(rap)#Insert the dependencies of all the new packages
         else:
             if( sys.argv[1] == "populate"):
                 print "Initial populate of the DB first from installed packages and then with available packages"
                 dbObj.clearAllTables()
+                print "-------------- Updating installed packages ---------"
                 updatePkgs(rip)
+                print "-------------- Updating available packages ---------"
                 updatePkgs(rap)
 
+                print "------------ Updating installed dependencies --------"
                 insertDep(rip)#Insert the dependencies of all the installed packages
+                print "------------ Updating available dependencies --------"
                 insertDep(rap)#Insert the dependencies of all the new packages
