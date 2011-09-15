@@ -19,7 +19,7 @@ groupTypes = {'All':'All packages','Una':'Missing Dependencies', 'Rem':'Removed'
 class DBManager:
     def __init__(self):
         try:
-            self.db=MySQLdb.connect(host="144.174.63.15",user="olmozavala",passwd="sopasperico",db="hpc_data")
+            self.db=MySQLdb.connect(host="144.174.63.197",user="olmozavala",passwd="sopasperico",db="hpc_data")
         except MySQLdb.Error, e:
             print "Error: %s" % e.args[1]
             sys.exit(1)

@@ -58,9 +58,10 @@ def insertDep(pkgs):
 
                 for po in reqlist:
                     provname = po.name # If we have a provider we use that insted of the dependency name
+                    arch = po.arch # If we have a provider we use that insted of the dependency name
 
                     #print "Provider name:",provname
-                    depid = dbObj.idFromPkgNameAndArch(provname)
+                    depid = dbObj.idFromPkgNameAndArch(provname,arch)
 
                     if(depid == None):
                         #Inserting the current Package into the Unavailable group (with missing dependencies)
